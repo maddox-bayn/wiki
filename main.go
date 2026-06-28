@@ -1,12 +1,13 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
+	"regexp"
 )
 
 // page layout for a wiki page
@@ -14,13 +15,15 @@ type Page struct {
 	Title string
 	Body  []byte
 }
+
 // method to save on the page
 func (p *Page) save() error {
 	// use title as file name to write
 	filename := p.Title + ".txt"
 	return os.WriteFile(filename, p.Body, 0600)
 }
-// read file to load the page  
+
+// read file to load the page
 func loadPage(title string) (*Page, error) {
 	filename := title + ".txt"
 	bodyData, err := os.ReadFile(filename)
@@ -29,9 +32,13 @@ func loadPage(title string) (*Page, error) {
 	}
 	return &Page{Title: title, Body: bodyData}, nil
 }
+
 // vieww handler for viewing a page
 func viewHandler(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Path[len("/view/"):]
+	title, err := getTitle(w, r)
+	if err != nil {
+		return
+	}
 	p, err := loadPage(title)
 	if err != nil {
 		http.Redirect(w, r, "/edit/"+title, http.StatusFound)
@@ -39,15 +46,20 @@ func viewHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	RenderTemplat(w, "view.html", p)
 }
+
 // handler to edit a page
 func editHandler(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Path[len("/edit/"):]
+	title, err := getTitle(w, r)
+	if err != nil {
+		return
+	}
 	p, err := loadPage(title)
 	if err != nil {
 		p = &Page{Title: title}
 	}
 	RenderTemplat(w, "edit.html", p)
 }
+
 // helper function to render response template
 func RenderTemplat(w http.ResponseWriter, file string, data any) {
 	err := tmpl.ExecuteTemplate(w, "templates/"+file, data)
@@ -56,16 +68,31 @@ func RenderTemplat(w http.ResponseWriter, file string, data any) {
 		return
 	}
 }
+
 // handle saving of pages
 func SaveHandle(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Path[len("/save/"):]
+	title, err := getTitle(w, r)
+	if err != nil {
+		return
+	}
 	body := r.FormValue("body")
 	page := &Page{Title: title, Body: []byte(body)}
 	page.save()
 	http.Redirect(w, r, "/view/"+title, http.StatusFound)
 }
 
+func getTitle(w http.ResponseWriter, r *http.Request) (string, error) {
+	sm := validPath.FindStringSubmatch(r.URL.Path)
+	if sm == nil {
+		http.NotFound(w, r)
+		return "", errors.New("Invalide title page")
+	}
+	return sm[1], nil
+}
+
 var tmpl *template.Template
+
+var validPath = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
 
 func main() {
 	tmpl = template.Must(template.ParseFiles("edit.html"))
