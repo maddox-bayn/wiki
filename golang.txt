@@ -1,1 +1,2 @@
 this is golang wiki course
+golang is a production grade programming language, it is statically type low and high level programming language 

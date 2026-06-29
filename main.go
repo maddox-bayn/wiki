@@ -52,10 +52,10 @@ func editHandler(w http.ResponseWriter, r *http.Request, title string) {
 }
 
 // helper function to render response template
-func RenderTemplat(w http.ResponseWriter, file string, data any) {
-	err := tmpl.ExecuteTemplate(w, "templates/"+file, data)
+func RenderTemplat(w http.ResponseWriter, file string, data *Page) {
+	err := tmpl.ExecuteTemplate(w, file, data)
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("%e", err), http.StatusInternalServerError)
 		return
 	}
 }
@@ -97,7 +97,7 @@ var tmpl *template.Template
 var validPath = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
 
 func main() {
-	tmpl = template.Must(template.ParseFiles("templates/edit.html", "templates/view.html"))
+	tmpl = template.Must(template.ParseFiles("templates/view.html", "templates/edit.html"))
 	http.HandleFunc("/view/", makeHandler(viewHandler))
 	http.HandleFunc("/save/", makeHandler(SaveHandle))
 	http.HandleFunc("/edit/", makeHandler(editHandler))
