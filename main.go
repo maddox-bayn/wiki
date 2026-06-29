@@ -64,7 +64,11 @@ func RenderTemplat(w http.ResponseWriter, file string, data any) {
 func SaveHandle(w http.ResponseWriter, r *http.Request, title string) {
 	body := r.FormValue("body")
 	page := &Page{Title: title, Body: []byte(body)}
-	page.save()
+	err := page.save()
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
 	http.Redirect(w, r, "/view/"+title, http.StatusFound)
 }
 
@@ -93,10 +97,10 @@ var tmpl *template.Template
 var validPath = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
 
 func main() {
-	tmpl = template.Must(template.ParseFiles("edit.html"))
+	tmpl = template.Must(template.ParseFiles("templates/edit.html", "templates/view.html"))
 	http.HandleFunc("/view/", makeHandler(viewHandler))
 	http.HandleFunc("/save/", makeHandler(SaveHandle))
 	http.HandleFunc("/edit/", makeHandler(editHandler))
-	fmt.Println("starting sever on http://localhost:8080")
+	fmt.Println("starting sever on http://localhost:8080/view/golang")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
